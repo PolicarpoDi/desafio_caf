@@ -1,0 +1,72 @@
+[
+  {
+    "_id": "64132ef6526eeb8b998e2d3c",
+    "fantasyName": "Ecratic",
+    "cnpj": "38792916000102",
+    "status": "Ativo",
+    "segment": "Banco"
+  },
+  {
+    "_id": "64132ef6f991a3a1884f2cd0",
+    "fantasyName": "Stockpost",
+    "cnpj": "87715692000132",
+    "status": "Inativo",
+    "segment": "Banco"
+  },
+  {
+    "_id": "64132ef6dca9067d51ca1b30",
+    "fantasyName": "Eschoir",
+    "cnpj": "71365876000180",
+    "status": "Inativo",
+    "segment": "Ecommerce"
+  },
+  {
+    "_id": "64132ef6eea665cc154f614a",
+    "fantasyName": "Verton",
+    "cnpj": "62782441000140",
+    "status": "Ativo",
+    "segment": "Banco"
+  },
+  {
+    "_id": "64132ef662f97d5858f87aba",
+    "fantasyName": "Earthmark",
+    "cnpj": "46522418000160",
+    "status": "Ativo",
+    "segment": "Ecommerce"
+  },
+  {
+    "_id": "64132ef6f54b06e1ffb65fba",
+    "fantasyName": "Tingles",
+    "cnpj": "84854134000160",
+    "status": "Ativo",
+    "segment": "Banco"
+  },
+  {
+    "_id": "64132ef64f72ae4d32dc3535",
+    "fantasyName": "Zytrax",
+    "cnpj": "67804098000100",
+    "status": "Inativo",
+    "segment": "Serviços"
+  },
+  {
+    "_id": "64132ef6ccd2d35a83c3544a",
+    "fantasyName": "Exospace",
+    "cnpj": "35354484000151",
+    "status": "Ativo",
+    "segment": "Banco"
+  },
+  {
+    "_id": "64132ef6c9c22c95893e388b",
+    "fantasyName": "Bisba",
+    "cnpj": "35166986000159",
+    "status": "Ativo",
+    "segment": "Banco"
+  },
+  {
+    "_id": "64132ef68637da8c371cdc09",
+    "fantasyName": "Caxt",
+    "cnpj": "23114879000106",
+    "status": "Ativo",
+    "segment": "Banco"
+  }
+]

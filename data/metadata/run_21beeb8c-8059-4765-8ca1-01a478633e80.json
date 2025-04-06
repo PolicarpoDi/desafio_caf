@@ -1,0 +1,6 @@
+{
+  "stage": "validate",
+  "status": "error",
+  "error": "'ValidatedEmail' object has no attribute 'normalized'",
+  "timestamp": "2025-04-06T23:52:20.912910"
+}
