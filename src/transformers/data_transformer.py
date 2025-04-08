@@ -70,6 +70,19 @@ class DataTransformer:
                 lambda x: f"{x[:2]}.{x[2:5]}.{x[5:8]}/{x[8:12]}-{x[12:]}"
             )
             
+            # Adiciona categoria de segmento baseada no segmento
+            segment_categories = {
+                'Banco': 'Financeiro',
+                'Ecommerce': 'Varejo',
+                'Serviços': 'Serviços'
+            }
+            customers_df['segment_category'] = customers_df['segment'].map(segment_categories)
+            
+            # Garante que não há valores nulos em segment_category
+            if customers_df['segment_category'].isnull().any():
+                logger.warning("Encontrados valores nulos em segment_category, preenchendo com 'Outros'")
+                customers_df['segment_category'] = customers_df['segment_category'].fillna('Outros')
+            
             return customers_df
         except Exception as e:
             logger.error(f"Erro ao transformar dados de clientes: {str(e)}")
@@ -87,10 +100,15 @@ class DataTransformer:
                 'userId': 'userid',
                 'favoriteFruit': 'favoritefruit',
                 'isFraud': 'isfraud',
-                'document_type': 'document_type',
-                'document_uf': 'document_uf',
                 '_id': '_id'
             })
+            
+            # Extrai informações do documento
+            transactions_df['document_type'] = transactions_df['document'].apply(lambda x: x.get('documentType', ''))
+            transactions_df['document_uf'] = transactions_df['document'].apply(lambda x: x.get('documentUF', ''))
+            
+            # Remove a coluna document original
+            transactions_df = transactions_df.drop(columns=['document'])
             
             # Converte timestamps para datetime e ajusta para UTC-3
             transactions_df['createdat'] = pd.to_datetime(transactions_df['createdat']).dt.tz_convert('Europe/Moscow')

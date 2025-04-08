@@ -61,7 +61,7 @@ class GoldLoader:
                         'name': stmt.excluded.name,
                         'email': stmt.excluded.email,
                         'birthdate': stmt.excluded.birthdate,
-                        'createdat': stmt.excluded.createdAt,
+                        'createdat': stmt.excluded.createdat,
                         'age': stmt.excluded.age
                     }
                 )
@@ -118,6 +118,11 @@ class GoldLoader:
         """Carrega dados de transações na camada gold"""
         logger.info("Carregando dados de transações na camada gold")
         try:
+            # Remove duplicatas mantendo a última ocorrência baseada no updatedat
+            logger.info("Removendo duplicatas de transações...")
+            transactions_df = transactions_df.sort_values('updatedat').drop_duplicates(subset=['_id'], keep='last')
+            logger.info(f"Total de transações únicas após remoção de duplicatas: {len(transactions_df)}")
+            
             # Converte DataFrame para lista de dicionários
             transactions_data = transactions_df.to_dict('records')
             
@@ -168,6 +173,14 @@ class GoldLoader:
             self.load_users(data['users'])
             self.load_customers(data['customers'])
             self.load_transactions(data['transactions'])
+            
+            # Atualiza as Materialized Views
+            logger.info("Atualizando Materialized Views...")
+            with self.engine.begin() as conn:
+                conn.execute(text("REFRESH MATERIALIZED VIEW gold.fraud_analysis"))
+                conn.execute(text("REFRESH MATERIALIZED VIEW gold.user_behavior"))
+                logger.info("Materialized Views atualizadas com sucesso")
+            
             logger.info("Todos os dados carregados com sucesso")
         except Exception as e:
             logger.error(f"Erro ao carregar todos os dados: {str(e)}")
