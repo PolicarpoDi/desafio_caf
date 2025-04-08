@@ -290,17 +290,16 @@ O projeto utiliza GitHub Actions para automatizar o processo de integração e e
 
 O pipeline consiste em dois jobs principais:
 
-1. **Testes e Qualidade de Código**
+1. **Verificação de Qualidade de Código**
    - Configura ambiente Python 3.11
    - Instala dependências
-   - Executa linting com flake8
-   - Verifica formatação com black
-   - Executa testes com pytest e cobertura
-   - Utiliza PostgreSQL para testes
+   - Executa linting com flake8 para verificar:
+     - Erros de sintaxe
+     - Estilo de código
+     - Complexidade do código
 
 2. **Build e Deploy Docker**
    - Constrói a imagem Docker
-   - Executa testes dentro do container
    - Faz push da imagem para Docker Hub (apenas na branch main)
 
 ### Configuração
@@ -310,7 +309,7 @@ Para que o pipeline funcione corretamente, é necessário configurar os seguinte
 1. Acesse Settings > Secrets and variables > Actions
 2. Adicione os secrets:
    - `DOCKERHUB_USERNAME`: Seu nome de usuário no Docker Hub
-   - `DOCKERHUB_TOKEN`: Seu token de acesso ao Docker Hub
+   - `DOCKERHUB_TOKEN`: Seu token de acesso ao Docker Hub (com permissão Read & Write)
 
 ### Execução Local
 
@@ -318,17 +317,11 @@ Para executar as mesmas verificações localmente:
 
 ```bash
 # Instalar dependências de desenvolvimento
-pip install pytest pytest-cov black flake8
+pip install flake8
 
 # Executar linting
 flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-
-# Verificar formatação
-black . --check
-
-# Executar testes
-pytest tests/ --cov=src --cov-report=term-missing
 ```
 
 ### Status do Pipeline
