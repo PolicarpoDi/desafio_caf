@@ -282,3 +282,49 @@ docker-compose up -d
    - Particionamento de dados
    - Otimização de queries
 
+## CI/CD Pipeline
+
+O projeto utiliza GitHub Actions para automatizar o processo de integração e entrega contínua (CI/CD). O pipeline é executado automaticamente em pushes e pull requests para a branch main.
+
+### Workflow
+
+O pipeline consiste em dois jobs principais:
+
+1. **Verificação de Qualidade de Código**
+   - Configura ambiente Python 3.11
+   - Instala dependências
+   - Executa linting com flake8 para verificar:
+     - Erros de sintaxe
+     - Estilo de código
+     - Complexidade do código
+
+2. **Build e Deploy Docker**
+   - Constrói a imagem Docker
+   - Faz push da imagem para Docker Hub (apenas na branch main)
+
+### Configuração
+
+Para que o pipeline funcione corretamente, é necessário configurar os seguintes secrets no GitHub:
+
+1. Acesse Settings > Secrets and variables > Actions
+2. Adicione os secrets:
+   - `DOCKERHUB_USERNAME`: Seu nome de usuário no Docker Hub
+   - `DOCKERHUB_TOKEN`: Seu token de acesso ao Docker Hub (com permissão Read & Write)
+
+### Execução Local
+
+Para executar as mesmas verificações localmente:
+
+```bash
+# Instalar dependências de desenvolvimento
+pip install flake8
+
+# Executar linting
+flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+```
+
+### Status do Pipeline
+
+O status do pipeline pode ser verificado na aba "Actions" do repositório no GitHub.
+
