@@ -1,5 +1,5 @@
 import logging
-from typing import Dict
+from typing import Dict, List, Any
 
 import pandas as pd
 
@@ -14,6 +14,32 @@ class DataValidator:
     def __init__(self):
         self.storage = ParquetStorage(base_path="data/parquet/bronze")
 
+    def _validate_entity(self, df: pd.DataFrame, schema_class: Any) -> pd.DataFrame:
+        """Valida os dados de acordo com o esquema Pydantic"""
+        validated_data: List[Dict] = []
+        errors: List[Dict] = []
+
+        for idx, row in df.iterrows():
+            try:
+                # Converte a linha para dicionário
+                row_dict = row.to_dict()
+                # Valida os dados
+                validated_row = schema_class(**row_dict).dict()
+                # Mantém todos os campos originais
+                validated_data.append({**row_dict, **validated_row})
+            except Exception as e:
+                errors.append({
+                    'row': idx,
+                    'error': str(e)
+                })
+                logger.warning(f"Erro na validação da linha {idx}: {str(e)}")
+
+        if errors:
+            logger.warning(f"Total de erros de validação: {len(errors)}")
+            # TODO: Implementar estratégia de tratamento de erros (ex: salvar em tabela de erros)
+
+        return pd.DataFrame(validated_data)
+
     def validate_data(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
         """Valida os dados e salva na camada bronze"""
         logger.info("Iniciando validação dos dados")
@@ -22,26 +48,15 @@ class DataValidator:
         try:
             # Validação de usuários
             logger.info("Validando dados de usuários")
-            validated_users = []
-            for _, row in data['users'].iterrows():
-                validated_users.append(User(**row.to_dict()).dict())
-            validated_data['users'] = pd.DataFrame(validated_users)
+            validated_data['users'] = self._validate_entity(data['users'], User)
 
             # Validação de clientes
             logger.info("Validando dados de clientes")
-            validated_customers = []
-            for _, row in data['customers'].iterrows():
-                validated_customers.append(Customer(**row.to_dict()).dict())
-            validated_data['customers'] = pd.DataFrame(validated_customers)
+            validated_data['customers'] = self._validate_entity(data['customers'], Customer)
 
             # Validação de transações
             logger.info("Validando dados de transações")
-            validated_transactions = []
-            for _, row in data['transactions'].iterrows():
-                validated_transactions.append(
-                    Transaction(**row.to_dict()).dict())
-            validated_data['transactions'] = pd.DataFrame(
-                validated_transactions)
+            validated_data['transactions'] = self._validate_entity(data['transactions'], Transaction)
 
             # Salva dados validados na camada bronze
             self.storage.save_to_parquet(validated_data)

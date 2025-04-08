@@ -36,24 +36,29 @@ class ParquetStorage:
             logger.error(f"Erro ao salvar dados em Parquet: {str(e)}")
             raise
 
-    def read_from_parquet(self, entity: str, timestamp: str = None) -> pd.DataFrame:
+    def read_from_parquet(self, entity: str) -> pd.DataFrame:
         """Lê dados de um arquivo Parquet"""
         try:
-            if timestamp:
-                file_path = os.path.join(
-                    self.base_path, f"{entity}_{timestamp}.parquet")
-            else:
-                # Pega o arquivo mais recente
-                files = [f for f in os.listdir(
-                    self.base_path) if f.startswith(f"{entity}_")]
-                if not files:
-                    raise FileNotFoundError(
-                        f"Nenhum arquivo Parquet encontrado para {entity}")
-                latest_file = max(files)
-                file_path = os.path.join(self.base_path, latest_file)
+            # Pega o arquivo mais recente
+            files = [f for f in os.listdir(self.base_path) 
+                    if f.startswith(f"{entity}_") and f.endswith('.parquet')]
+            if not files:
+                raise FileNotFoundError(f"Nenhum arquivo Parquet encontrado para {entity}")
+            latest_file = max(files)
+            file_path = os.path.join(self.base_path, latest_file)
 
             logger.info(f"Lendo dados de {file_path}")
             return pd.read_parquet(file_path)
         except Exception as e:
             logger.error(f"Erro ao ler dados do Parquet: {str(e)}")
+            raise
+
+    def list_versions(self, entity: str) -> list:
+        """Lista todas as versões disponíveis para uma entidade"""
+        try:
+            files = [f for f in os.listdir(self.base_path) 
+                    if f.startswith(f"{entity}_") and f.endswith('.parquet')]
+            return sorted(files)
+        except Exception as e:
+            logger.error(f"Erro ao listar versões: {str(e)}")
             raise

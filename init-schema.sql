@@ -1,97 +1,58 @@
--- Criação dos schemas
-CREATE SCHEMA IF NOT EXISTS raw;
-CREATE SCHEMA IF NOT EXISTS bronze;
-CREATE SCHEMA IF NOT EXISTS silver;
+-- Criação do schema gold
 CREATE SCHEMA IF NOT EXISTS gold;
 
--- Tabelas da camada Raw (Bronze)
-CREATE TABLE IF NOT EXISTS raw.users (
-    _id TEXT PRIMARY KEY,
-    name TEXT,
-    email TEXT,
-    password TEXT,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP,
-    ingestion_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- Tabela de usuários
+CREATE TABLE IF NOT EXISTS gold.users (
+    _id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    birthdate TIMESTAMP NOT NULL,
+    createdAt TIMESTAMP NOT NULL,
+    age INTEGER NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS raw.customers (
-    _id TEXT PRIMARY KEY,
-    fantasy_name TEXT,
-    cnpj TEXT,
-    status TEXT,
-    segment TEXT,
-    ingestion_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- Tabela de clientes
+CREATE TABLE IF NOT EXISTS gold.customers (
+    _id VARCHAR(255) PRIMARY KEY,
+    fantasyName VARCHAR(255) NOT NULL,
+    cnpj VARCHAR(18) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    segment VARCHAR(50) NOT NULL,
+    segment_category VARCHAR(50) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS raw.transactions (
-    _id TEXT PRIMARY KEY,
-    tenantId TEXT,
-    userId TEXT,
-    createdAt TIMESTAMP,
-    updatedAt TIMESTAMP,
-    favoriteFruit TEXT,
-    isFraud BOOLEAN,
-    document JSONB,
-    ingestion_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- Tabela de transações
+CREATE TABLE IF NOT EXISTS gold.transactions (
+    _id VARCHAR(255) PRIMARY KEY,
+    tenantId VARCHAR(255) NOT NULL,
+    userId VARCHAR(255) NOT NULL,
+    createdAt TIMESTAMP NOT NULL,
+    updatedAt TIMESTAMP NOT NULL,
+    favoriteFruit VARCHAR(50) NOT NULL,
+    isFraud BOOLEAN NOT NULL,
+    document_type VARCHAR(50),
+    document_uf VARCHAR(2),
+    FOREIGN KEY (userId) REFERENCES gold.users(_id)
 );
 
--- Tabelas da camada Bronze (Silver)
-CREATE TABLE IF NOT EXISTS bronze.users (
-    _id TEXT PRIMARY KEY,
-    name TEXT,
-    email TEXT,
-    password TEXT,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP,
-    ingestion_timestamp TIMESTAMP,
-    validation_status TEXT,
-    validation_errors JSONB
-);
-
-CREATE TABLE IF NOT EXISTS bronze.customers (
-    _id TEXT PRIMARY KEY,
-    fantasy_name TEXT,
-    cnpj TEXT,
-    status TEXT,
-    segment TEXT,
-    ingestion_timestamp TIMESTAMP,
-    validation_status TEXT,
-    validation_errors JSONB
-);
-
-CREATE TABLE IF NOT EXISTS bronze.transactions (
-    _id TEXT PRIMARY KEY,
-    tenantId TEXT,
-    userId TEXT,
-    createdAt TIMESTAMP,
-    updatedAt TIMESTAMP,
-    favoriteFruit TEXT,
-    isFraud BOOLEAN,
-    document_type TEXT,
-    document_uf TEXT,
-    ingestion_timestamp TIMESTAMP,
-    validation_status TEXT,
-    validation_errors JSONB
-);
-
--- Views da camada Silver (Gold)
-CREATE OR REPLACE VIEW silver.user_analytics AS
+-- Views analíticas da camada Gold
+CREATE OR REPLACE VIEW gold.user_analytics AS
 SELECT 
     u._id,
     u.name,
     u.email,
-    c.fantasy_name as company_name,
+    u.age,
+    c.fantasyName as company_name,
     c.segment as company_segment,
     COUNT(t._id) as total_transactions,
     SUM(CASE WHEN t.isFraud THEN 1 ELSE 0 END) as fraud_transactions,
     COUNT(DISTINCT t.favoriteFruit) as unique_fruits
-FROM bronze.users u
-LEFT JOIN bronze.transactions t ON u._id = t.userId
-LEFT JOIN bronze.customers c ON t.tenantId = c._id
-GROUP BY u._id, u.name, u.email, c.fantasy_name, c.segment;
+FROM gold.users u
+LEFT JOIN gold.transactions t ON u._id = t.userId
+LEFT JOIN gold.customers c ON t.tenantId = c._id
+GROUP BY u._id, u.name, u.email, u.age, c.fantasyName, c.segment;
 
-CREATE OR REPLACE VIEW silver.transaction_analytics AS
+CREATE OR REPLACE VIEW gold.transaction_analytics AS
 SELECT 
     t._id,
     t.createdAt,
@@ -100,51 +61,41 @@ SELECT
     t.document_type,
     t.document_uf,
     u.name as user_name,
-    c.fantasy_name as company_name,
+    u.email as user_email,
+    c.fantasyName as company_name,
     c.segment as company_segment
-FROM bronze.transactions t
-LEFT JOIN bronze.users u ON t.userId = u._id
-LEFT JOIN bronze.customers c ON t.tenantId = c._id;
+FROM gold.transactions t
+LEFT JOIN gold.users u ON t.userId = u._id
+LEFT JOIN gold.customers c ON t.tenantId = c._id;
 
--- Views Materializadas da camada Gold
+-- Materialized Views para análises mais complexas
 CREATE MATERIALIZED VIEW IF NOT EXISTS gold.fraud_analysis AS
 SELECT 
-    DATE_TRUNC('day', t.createdAt) as transaction_date,
-    c.segment as company_segment,
     t.document_type,
     t.document_uf,
     COUNT(*) as total_transactions,
     SUM(CASE WHEN t.isFraud THEN 1 ELSE 0 END) as fraud_count,
     ROUND(AVG(CASE WHEN t.isFraud THEN 1 ELSE 0 END) * 100, 2) as fraud_percentage
-FROM bronze.transactions t
-JOIN bronze.customers c ON t.tenantId = c._id
-GROUP BY transaction_date, c.segment, t.document_type, t.document_uf;
+FROM gold.transactions t
+GROUP BY t.document_type, t.document_uf;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS gold.user_behavior AS
 SELECT 
-    u._id as user_id,
-    u.name as user_name,
-    c.segment as company_segment,
-    COUNT(DISTINCT t.favoriteFruit) as unique_fruits,
+    u._id,
+    u.name,
+    u.email,
+    u.age,
     COUNT(t._id) as total_transactions,
-    MIN(t.createdAt) as first_transaction,
-    MAX(t.createdAt) as last_transaction
-FROM bronze.users u
-LEFT JOIN bronze.transactions t ON u._id = t.userId
-LEFT JOIN bronze.customers c ON t.tenantId = c._id
-GROUP BY u._id, u.name, c.segment;
+    COUNT(DISTINCT t.favoriteFruit) as unique_fruits,
+    COUNT(DISTINCT t.document_type) as unique_document_types,
+    COUNT(DISTINCT t.document_uf) as unique_states
+FROM gold.users u
+LEFT JOIN gold.transactions t ON u._id = t.userId
+GROUP BY u._id, u.name, u.email, u.age;
 
--- Índices para otimização
-CREATE INDEX IF NOT EXISTS idx_raw_transactions_createdat ON raw.transactions(createdAt);
-CREATE INDEX IF NOT EXISTS idx_bronze_transactions_createdat ON bronze.transactions(createdAt);
-CREATE INDEX IF NOT EXISTS idx_bronze_transactions_userid ON bronze.transactions(userId);
-CREATE INDEX IF NOT EXISTS idx_bronze_transactions_tenantid ON bronze.transactions(tenantId);
-
--- Função para atualizar as views materializadas
-CREATE OR REPLACE FUNCTION refresh_gold_views()
-RETURNS void AS $$
-BEGIN
-    REFRESH MATERIALIZED VIEW gold.fraud_analysis;
-    REFRESH MATERIALIZED VIEW gold.user_behavior;
-END;
-$$ LANGUAGE plpgsql; 
+-- Índices
+CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON gold.transactions(userId);
+CREATE INDEX IF NOT EXISTS idx_transactions_tenant_id ON gold.transactions(tenantId);
+CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON gold.transactions(createdAt);
+CREATE INDEX IF NOT EXISTS idx_users_email ON gold.users(email);
+CREATE INDEX IF NOT EXISTS idx_customers_cnpj ON gold.customers(cnpj);

@@ -5,11 +5,11 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 
 from src.extractors.data_extractor import DataExtractor
-from src.loaders.data_loader import DataLoader
 from src.transformers.data_transformer import DataTransformer
-from src.utils.metadata import PipelineMetadata
-from src.validators.data_quality import DataQualityValidator
 from src.validators.data_validator import DataValidator
+from src.validators.data_quality import DataQualityValidator
+from src.loaders.gold_loader import GoldLoader
+from src.utils.metadata import PipelineMetadata
 
 default_args = {
     'owner': 'airflow',
@@ -120,7 +120,7 @@ def load_data(**context):
     metadata = PipelineMetadata()
 
     try:
-        loader = DataLoader()
+        loader = GoldLoader()
         loader.load_all(data)
 
         # Salva metadados do carregamento

@@ -1,10 +1,11 @@
 import logging
-from datetime import datetime
 from typing import Dict
+from datetime import datetime
 
 import pandas as pd
+from zoneinfo import ZoneInfo
 
-from ..utils.schemas import Customer, Transaction, User
+from ..storage.parquet_storage import ParquetStorage
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -13,57 +14,95 @@ logger = logging.getLogger(__name__)
 class DataTransformer:
     def __init__(self):
         self.metrics = {}
-
-    def calculate_age(self, birthdate: datetime) -> int:
-        """Transforma idade do usuário"""
-        today = datetime.now()
-        return today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
+        self.storage = ParquetStorage(base_path="data/parquet/silver")
 
     def transform_users(self, users_df: pd.DataFrame) -> pd.DataFrame:
-        """Transforma os dados de usuários"""
+        """Transforma dados de usuários"""
         logger.info("Transformando dados de usuários")
         try:
-            # Validação pré-transformacao
-            for _, row in users_df.iterrows():
-                User(**row.to_dict())
-
-            # Transformações
-            users_df['age'] = users_df['birthdate'].apply(self.calculate_age)
-
-            # Validação pós-transformacao
-            for _, row in users_df.iterrows():
-                User(**row.to_dict())
-
-            logger.info("Transformação de usuários concluída")
+            # Primeiro renomeia todas as colunas para minúsculas
+            users_df = users_df.rename(columns={
+                'createdAt': 'createdat',
+                'birthdate': 'birthdate',
+                'name': 'name',
+                'email': 'email',
+                '_id': '_id'
+            })
+            
+            # Converte timestamps para datetime de forma robusta
+            users_df['createdat'] = pd.to_datetime(users_df['createdat'], utc=True)
+            users_df['birthdate'] = pd.to_datetime(users_df['birthdate'], utc=True)
+            
+            # Ajusta para o fuso horário de Moscow
+            users_df['createdat'] = users_df['createdat'].dt.tz_convert('Europe/Moscow')
+            users_df['birthdate'] = users_df['birthdate'].dt.tz_convert('Europe/Moscow')
+            
+            # Formata as datas para string
+            users_df['createdat'] = users_df['createdat'].dt.strftime('%Y-%m-%d %H:%M:%S')
+            users_df['birthdate'] = users_df['birthdate'].dt.strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Calcula idade
+            now = datetime.now(ZoneInfo('Europe/Moscow'))
+            birthdate_dt = pd.to_datetime(users_df['birthdate']).dt.tz_localize('Europe/Moscow')
+            users_df['age'] = (now - birthdate_dt).dt.days // 365
+            
             return users_df
-
         except Exception as e:
-            logger.error(f"Erro na transformação de usuários: {str(e)}")
+            logger.error(f"Erro ao transformar dados de usuários: {str(e)}")
+            raise
+
+    def transform_customers(self, customers_df: pd.DataFrame) -> pd.DataFrame:
+        """Transforma dados de clientes"""
+        logger.info("Transformando dados de clientes")
+        try:
+            # Primeiro renomeia todas as colunas para minúsculas
+            customers_df = customers_df.rename(columns={
+                'fantasyName': 'fantasyname',
+                'cnpj': 'cnpj',
+                'status': 'status',
+                'segment': 'segment',
+                '_id': '_id'
+            })
+            
+            # Formata CNPJ
+            customers_df['cnpj'] = customers_df['cnpj'].astype(str).str.zfill(14)
+            customers_df['cnpj'] = customers_df['cnpj'].apply(
+                lambda x: f"{x[:2]}.{x[2:5]}.{x[5:8]}/{x[8:12]}-{x[12:]}"
+            )
+            
+            return customers_df
+        except Exception as e:
+            logger.error(f"Erro ao transformar dados de clientes: {str(e)}")
             raise
 
     def transform_transactions(self, transactions_df: pd.DataFrame) -> pd.DataFrame:
-        """Transforma os dados de transações"""
+        """Transforma dados de transações"""
         logger.info("Transformando dados de transações")
         try:
-            # Validação pré-transformacao
-            for _, row in transactions_df.iterrows():
-                Transaction(**row.to_dict())
-
-            # Transformações
-            transactions_df['document_type'] = transactions_df['document'].apply(
-                lambda x: x['documentType'])
-            transactions_df['document_uf'] = transactions_df['document'].apply(
-                lambda x: x['documentUF'])
-
-            # Validação pós-transformacao
-            for _, row in transactions_df.iterrows():
-                Transaction(**row.to_dict())
-
-            logger.info("Transformação de transações concluída")
-            return transactions_df.drop('document', axis=1)
-
+            # Primeiro renomeia todas as colunas para minúsculas
+            transactions_df = transactions_df.rename(columns={
+                'createdAt': 'createdat',
+                'updatedAt': 'updatedat',
+                'tenantId': 'tenantid',
+                'userId': 'userid',
+                'favoriteFruit': 'favoritefruit',
+                'isFraud': 'isfraud',
+                'document_type': 'document_type',
+                'document_uf': 'document_uf',
+                '_id': '_id'
+            })
+            
+            # Converte timestamps para datetime e ajusta para UTC-3
+            transactions_df['createdat'] = pd.to_datetime(transactions_df['createdat']).dt.tz_convert('Europe/Moscow')
+            transactions_df['updatedat'] = pd.to_datetime(transactions_df['updatedat']).dt.tz_convert('Europe/Moscow')
+            
+            # Formata as datas para string
+            transactions_df['createdat'] = transactions_df['createdat'].dt.strftime('%Y-%m-%d %H:%M:%S')
+            transactions_df['updatedat'] = transactions_df['updatedat'].dt.strftime('%Y-%m-%d %H:%M:%S')
+            
+            return transactions_df
         except Exception as e:
-            logger.error(f"Erro na transformação de transações: {str(e)}")
+            logger.error(f"Erro ao transformar dados de transações: {str(e)}")
             raise
 
     def transform_all(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
@@ -73,10 +112,11 @@ class DataTransformer:
 
         try:
             transformed_data['users'] = self.transform_users(data['users'])
-            transformed_data['transactions'] = self.transform_transactions(
-                data['transactions'])
-            # Sem transformação necessária
-            transformed_data['customers'] = data['customers']
+            transformed_data['customers'] = self.transform_customers(data['customers'])
+            transformed_data['transactions'] = self.transform_transactions(data['transactions'])
+
+            # Salva dados transformados na camada silver
+            self.storage.save_to_parquet(transformed_data)
 
             logger.info("Transformação de todos os dados concluída")
             return transformed_data

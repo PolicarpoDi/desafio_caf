@@ -7,12 +7,11 @@ from pydantic import BaseModel, Field, validator, AliasChoices
 
 
 class User(BaseModel):
-    id: str = Field(..., validation_alias=AliasChoices('_id', 'id'))
+    _id: str
     name: str
     email: str
-    password: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    createdAt: str
+    birthdate: str
 
     @validator('email')
     def validate_email(cls, v):
@@ -23,36 +22,35 @@ class User(BaseModel):
 
 
 class Customer(BaseModel):
-    id: str = Field(..., validation_alias=AliasChoices('_id', 'id'))
-    fantasy_name: Optional[str] = None
-    cnpj: str = Field(..., min_length=14, max_length=14)
+    _id: str
+    fantasyName: str
+    cnpj: int
     status: str
     segment: str
 
-    @validator('cnpj', pre=True)
-    def convert_cnpj_to_string(cls, v):
-        if isinstance(v, (int, float)):
-            return str(v)
+    @validator('cnpj')
+    def validate_cnpj(cls, v):
+        # Converte para string para validar o tamanho
+        cnpj_str = str(v)
+        if len(cnpj_str) != 14:
+            raise ValueError('CNPJ deve ter 14 dígitos')
+        
+        # Verifica se todos os caracteres são números
+        if not cnpj_str.isdigit():
+            raise ValueError('CNPJ deve conter apenas números')
+        
         return v
 
 
 class Transaction(BaseModel):
-    id: str = Field(..., validation_alias=AliasChoices('_id', 'id'))
+    _id: str
     tenantId: str
     userId: str
-    createdAt: datetime
-    updatedAt: datetime
+    createdAt: str
+    updatedAt: str
     favoriteFruit: str
     isFraud: bool
     document: Dict[str, Any]
-
-    @validator('createdAt', 'updatedAt', pre=True)
-    def parse_datetime(cls, v):
-        if isinstance(v, str):
-            # Remove o espaço antes do sinal do timezone
-            v = v.replace(' +', '+').replace(' -', '-')
-            return datetime.fromisoformat(v)
-        return v
 
     @validator('document', pre=True)
     def parse_document(cls, v):
