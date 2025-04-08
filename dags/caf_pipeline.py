@@ -63,12 +63,12 @@ def validate_data(**context):
             quality_validator.validate_null_values(df, entity)
             if entity == 'users':
                 quality_validator.validate_unique_values(
-                    df, entity, ['_id', 'email'])
+                    df, entity, ['id', 'email'])
             elif entity == 'customers':
                 quality_validator.validate_unique_values(
-                    df, entity, ['_id', 'cnpj'])
+                    df, entity, ['id', 'cnpj'])
             elif entity == 'transactions':
-                quality_validator.validate_unique_values(df, entity, ['_id'])
+                quality_validator.validate_unique_values(df, entity, ['id'])
 
         # Salva metadados da validação
         metadata.save_run_metadata(run_id, {

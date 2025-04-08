@@ -3,6 +3,7 @@ import logging
 import os
 from datetime import datetime
 from typing import Any, Dict
+from zoneinfo import ZoneInfo
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,7 +25,9 @@ class PipelineMetadata:
     def save_run_metadata(self, run_id: str, metadata: Dict[str, Any]):
         """Salva metadados de uma execução do pipeline"""
         try:
-            metadata['timestamp'] = datetime.now().isoformat()
+            # Ajusta o timestamp para o horário do Brasil
+            brazil_tz = datetime.now(ZoneInfo("America/Sao_Paulo"))
+            metadata['timestamp'] = brazil_tz.strftime("%d/%m/%Y %H:%M:%S")
             file_path = self.get_metadata_file(run_id)
 
             with open(file_path, 'w') as f:

@@ -1,5 +1,17 @@
 #!/bin/bash
 
+# Cria diretórios de log e configura permissões
+echo "Criando diretórios de log..."
+sudo mkdir -p /opt/airflow/logs/{scheduler,webserver,dag_processor_manager}
+sudo chown -R airflow:0 /opt/airflow/logs
+sudo chmod -R 775 /opt/airflow/logs
+
+# Cria diretórios de dados e configura permissões
+echo "Criando diretórios de dados..."
+sudo mkdir -p /opt/airflow/data/metadata
+sudo chown -R airflow:0 /opt/airflow/data
+sudo chmod -R 775 /opt/airflow/data
+
 # Aguarda o PostgreSQL estar pronto
 until pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do
   echo "Aguardando PostgreSQL..."

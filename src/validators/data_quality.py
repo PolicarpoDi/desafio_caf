@@ -38,7 +38,12 @@ class DataQualityValidator:
         }
 
         for col in unique_columns:
-            unique_count = df[col].nunique()
+            actual_col = 'id' if col == '_id' else col
+            if actual_col not in df.columns:
+                logger.warning(f"Coluna {actual_col} não encontrada no DataFrame")
+                continue
+                
+            unique_count = df[actual_col].nunique()
             total_count = len(df)
             validation[col] = {
                 'unique_count': unique_count,

@@ -1,14 +1,16 @@
 import re
+import json
 from datetime import datetime
+from typing import Optional, Dict, Any
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, AliasChoices
 
 
 class User(BaseModel):
-    _id: str
+    id: str = Field(..., validation_alias=AliasChoices('_id', 'id'))
     name: str
     email: str
-    password: str
+    password: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
@@ -21,19 +23,39 @@ class User(BaseModel):
 
 
 class Customer(BaseModel):
-    _id: str
-    fantasy_name: str
+    id: str = Field(..., validation_alias=AliasChoices('_id', 'id'))
+    fantasy_name: Optional[str] = None
     cnpj: str = Field(..., min_length=14, max_length=14)
     status: str
     segment: str
 
+    @validator('cnpj', pre=True)
+    def convert_cnpj_to_string(cls, v):
+        if isinstance(v, (int, float)):
+            return str(v)
+        return v
+
 
 class Transaction(BaseModel):
-    _id: str
+    id: str = Field(..., validation_alias=AliasChoices('_id', 'id'))
     tenantId: str
     userId: str
     createdAt: datetime
     updatedAt: datetime
     favoriteFruit: str
     isFraud: bool
-    document: dict
+    document: Dict[str, Any]
+
+    @validator('createdAt', 'updatedAt', pre=True)
+    def parse_datetime(cls, v):
+        if isinstance(v, str):
+            # Remove o espaço antes do sinal do timezone
+            v = v.replace(' +', '+').replace(' -', '-')
+            return datetime.fromisoformat(v)
+        return v
+
+    @validator('document', pre=True)
+    def parse_document(cls, v):
+        if isinstance(v, str):
+            return json.loads(v)
+        return v
